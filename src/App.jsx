@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { animate, stagger } from 'animejs'
 
 const Arrow = () => <span className="arrow" aria-hidden="true">↗</span>
 const Spark = () => <span className="spark" aria-hidden="true">✦</span>
@@ -6,6 +7,68 @@ const Spark = () => <span className="spark" aria-hidden="true">✦</span>
 function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [choice, setChoice] = useState(null)
+  const pageRef = useRef(null)
+
+  useEffect(() => {
+    const page = pageRef.current
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (!page || reduceMotion) return undefined
+
+    const animations = []
+    const observers = []
+
+    const addAnimation = (targets, options) => {
+      if (targets.length || targets instanceof Element) animations.push(animate(targets, options))
+    }
+
+    const reveal = (selector, { distance = 0, staggerDelay = 0, threshold = 0.18 } = {}) => {
+      const elements = [...page.querySelectorAll(selector)]
+      elements.forEach((element, index) => {
+        const observer = new IntersectionObserver(([entry]) => {
+          if (!entry.isIntersecting) return
+          addAnimation(element, {
+            opacity: { from: 0, to: 1 },
+            ...(distance ? { y: { from: distance, to: 0 } } : {}),
+            duration: 720,
+            delay: index * staggerDelay,
+            ease: 'outExpo',
+          })
+          observer.unobserve(element)
+        }, { threshold })
+        observer.observe(element)
+        observers.push(observer)
+      })
+    }
+
+    addAnimation(page.querySelectorAll('.hero-copy > *'), {
+      opacity: { from: 0, to: 1 },
+      y: { from: 28, to: 0 },
+      duration: 850,
+      delay: stagger(105),
+      ease: 'outExpo',
+    })
+    addAnimation(page.querySelector('.game-card'), { opacity: { from: 0, to: 1 }, duration: 850, delay: 180, ease: 'outExpo' })
+    addAnimation(page.querySelectorAll('.float-chip'), { opacity: { from: 0, to: 1 }, duration: 540, delay: stagger(130, { start: 550 }), ease: 'outExpo' })
+
+    reveal('.intro-grid, .stat-strip', { distance: 28, staggerDelay: 120 })
+    reveal('.how-heading', { distance: 28 })
+    reveal('.journey-step', { staggerDelay: 90, threshold: 0.12 })
+    reveal('.loop-note', { distance: 18 })
+    reveal('.solution-copy', { distance: 30 })
+    reveal('.solution-visual')
+    reveal('.quest-header', { distance: 26 })
+    reveal('.quest-card', { staggerDelay: 105, threshold: 0.12 })
+    reveal('.simulator-copy', { distance: 28 })
+    reveal('.market-window')
+    reveal('.impact-heading', { distance: 28 })
+    reveal('.impact-grid article', { staggerDelay: 105, threshold: 0.12 })
+    reveal('.final-cta .wrap', { distance: 28 })
+
+    return () => {
+      observers.forEach((observer) => observer.disconnect())
+      animations.forEach((animation) => animation.revert())
+    }
+  }, [])
 
   const makeChoice = (answer) => {
     setChoice(answer)
@@ -13,7 +76,7 @@ function App() {
   }
 
   return (
-    <main>
+    <main ref={pageRef}>
       <section className="hero" id="home">
         <div className="hero-grid" aria-hidden="true" />
         <div className="orb orb-one" aria-hidden="true" />
